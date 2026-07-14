@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>MySQL 客户端</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 侧边栏 -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🐬 MySQL</span>
+        <div class="sb-actions">
+          <button id="btn-compare" class="icon-btn" title="结构对比">⇄</button>
+          <button id="btn-theme" class="icon-btn" title="切换主题">🌙</button>
+          <button id="btn-refresh-tree" class="icon-btn" title="刷新">⟳</button>
+          <button id="btn-new-conn" class="icon-btn" title="新建连接">＋</button>
+        </div>
+      </div>
+      <div id="tree" class="tree"></div>
+    </aside>
+    <div id="sidebar-resizer" class="resizer"></div>
+
+    <!-- 主区域 -->
+    <main id="main">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-inner">
+          <div class="empty-icon">🐬</div>
+          <h2>欢迎使用 MySQL 客户端</h2>
+          <p>从左侧选择一个连接，或新建一个连接开始。</p>
+          <button id="btn-empty-new" class="btn primary">＋ 新建连接</button>
+        </div>
+      </div>
+
+      <div id="workspace" class="workspace hidden">
+        <div class="tabbar">
+          <button class="tab active" data-tab="query">查询</button>
+          <button class="tab" data-tab="structure">表结构</button>
+          <button class="tab" data-tab="data">数据</button>
+          <button class="tab" data-tab="history">历史</button>
+          <span class="ws-info" id="ws-info"></span>
+        </div>
+
+        <!-- 查询 -->
+        <section class="panel active" id="panel-query">
+          <div class="qtabs" id="qtabs"></div>
+          <div class="query-body">
+            <aside id="schema-panel" class="schema-panel">
+              <div class="schema-head">
+                <span>📚 结构</span>
+                <button id="schema-refresh" class="btn tiny" title="刷新表列表">⟳</button>
+              </div>
+              <input id="schema-search" class="schema-search" placeholder="搜索表 / 字段…" spellcheck="false" />
+              <div id="schema-tree" class="schema-tree"></div>
+              <div class="schema-hint">单击插入 · 双击表生成 SELECT</div>
+            </aside>
+            <div id="schema-resizer" class="schema-resizer"></div>
+            <div class="query-main">
+              <div class="query-toolbar">
+                <button id="btn-schema" class="btn" title="显示 / 隐藏左侧结构树">📚</button>
+                <select id="db-select" class="db-select"></select>
+                <button id="btn-run" class="btn primary" title="执行选中的 SQL；无选中时执行光标所在的语句">▶ 执行 <kbd>Ctrl+↵</kbd></button>
+                <button id="btn-qb" class="btn" title="可视化查询构建器：选表、勾字段、加条件，自动生成 SQL">🧩 构建器</button>
+                <button id="btn-snippets" class="btn" title="常用 SQL 模板，点击插入到光标处">📋 片段</button>
+                <button id="btn-format" class="btn">美化</button>
+                <button id="btn-comment" class="btn" title="注释 / 取消注释当前行">注释 <kbd>Ctrl+/</kbd></button>
+                <button id="btn-clear-sql" class="btn">清空</button>
+                <label class="limit-ctl" title="每页行数：单条 SELECT 自动分页浏览，可翻页；导出为全部数据。0 表示不分页（一次拉全部）">每页 <input id="query-limit" class="limit-input" type="number" min="0" step="100" value="1000"> 行</label>
+                <span id="query-status" class="status"></span>
+              </div>
+              <div id="snippet-bar" class="snippet-bar hidden"></div>
+              <div class="editor-wrap">
+                <textarea id="sql-editor" class="sql-editor" spellcheck="false"
+                  placeholder="在此输入 SQL；左侧结构树单击表/字段可插入。Tab 在 «占位符» 间跳转，Ctrl+↵ 执行光标所在语句或选中片段。"></textarea>
+                <div id="ac" class="ac hidden"></div>
+              </div>
+              <div id="query-result" class="result-host"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 表结构 -->
+        <section class="panel" id="panel-structure">
+          <div class="structure-toolbar">
+            <select id="struct-db-select" class="db-select"></select>
+            <select id="struct-table-select" class="db-select"></select>
+            <div class="seg">
+              <button class="seg-btn active" data-struct="columns">字段</button>
+              <button class="seg-btn" data-struct="indexes">索引</button>
+              <button class="seg-btn" data-struct="fk">外键</button>
+              <button class="seg-btn" data-struct="ddl">建表语句</button>
+            </div>
+          </div>
+          <div id="structure-content" class="result-host"></div>
+        </section>
+
+        <!-- 数据 -->
+        <section class="panel" id="panel-data">
+          <div class="structure-toolbar">
+            <select id="data-db-select" class="db-select"></select>
+            <select id="data-table-select" class="db-select"></select>
+            <input id="data-where" class="where-input" placeholder="WHERE 条件（可选），如 id > 100" />
+            <button id="btn-load-data" class="btn primary">查询</button>
+            <button id="btn-insert-row" class="btn">＋ 新增行</button>
+            <button id="btn-delete-rows" class="btn">删除选中</button>
+            <button id="btn-import-data" class="btn">⭳ 导入</button>
+            <span class="pager" id="data-pager"></span>
+          </div>
+          <div id="data-edit-hint" class="edit-hint"></div>
+          <div id="data-result" class="result-host"></div>
+        </section>
+
+        <!-- 历史 -->
+        <section class="panel" id="panel-history">
+          <div class="structure-toolbar">
+            <input id="history-filter" class="where-input" placeholder="搜索历史 SQL…" />
+            <button id="btn-history-clear" class="btn">清空历史</button>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </section>
+      </div>
+
+      <!-- 状态栏 -->
+      <footer id="statusbar">
+        <span id="sb-conn">未连接</span>
+        <span id="sb-version"></span>
+        <span class="sb-spacer"></span>
+        <span id="sb-msg"></span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- 连接编辑弹窗 -->
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modal-title">新建连接</h3>
+      <input type="hidden" id="f-id" />
+      <div class="form-grid">
+        <div class="form-row">
+          <label>数据库类型</label>
+          <select id="f-type" class="db-select" style="width:100%">
+            <option value="mysql">MySQL</option>
+            <option value="mariadb">MariaDB</option>
+            <option value="postgres">PostgreSQL</option>
+            <option value="sqlite">SQLite</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>连接名称</label>
+          <input type="text" id="f-name" placeholder="我的数据库" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>分组</label>
+        <input type="text" id="f-group" list="group-list" placeholder="默认" />
+        <datalist id="group-list"></datalist>
+      </div>
+      <div id="sqlite-fields" class="hidden">
+        <div class="form-row">
+          <label>数据库文件 (.db / .sqlite)</label>
+          <div class="file-row">
+            <input type="text" id="f-sqlite-file" placeholder="选择或输入文件路径（不存在则新建）" />
+            <button type="button" id="btn-pick-db" class="btn">浏览…</button>
+          </div>
+        </div>
+      </div>
+      <div id="server-fields">
+        <div class="form-grid">
+          <div class="form-row"><label>主机</label><input type="text" id="f-host" value="127.0.0.1" /></div>
+          <div class="form-row"><label>端口</label><input type="number" id="f-port" value="3306" /></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>用户名</label><input type="text" id="f-user" value="root" /></div>
+          <div class="form-row"><label>密码</label><input type="password" id="f-password" /></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>默认数据库（可选）</label><input type="text" id="f-database" placeholder="留空" /></div>
+          <div class="form-row checkbox-row"><label><input type="checkbox" id="f-ssl" /> 使用 SSL</label></div>
+        </div>
+      </div>
+      <div class="form-row checkbox-row" style="margin-top:4px"><label><input type="checkbox" id="f-favorite" /> ⭐ 收藏</label></div>
+      <div id="modal-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <button id="btn-test" class="btn">测试连接</button>
+        <div class="spacer"></div>
+        <button id="btn-cancel" class="btn">取消</button>
+        <button id="btn-save" class="btn primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 行详情弹窗 -->
+  <div id="row-modal" class="modal-overlay hidden">
+    <div class="modal wide">
+      <h3>行详情</h3>
+      <div id="row-detail" class="row-detail"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-row-close" class="btn primary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增行弹窗 -->
+  <div id="insert-modal" class="modal-overlay hidden">
+    <div class="modal wide">
+      <h3 id="insert-title">新增行</h3>
+      <div class="insert-hint">留空的字段将使用默认值 / 自增 / NULL；勾选「NULL」显式插入 NULL。</div>
+      <div id="insert-fields" class="insert-fields"></div>
+      <div id="insert-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-insert-cancel" class="btn">取消</button>
+        <button id="btn-insert-save" class="btn primary">插入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 字段编辑弹窗 -->
+  <div id="col-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="col-title">新增字段</h3>
+      <input type="hidden" id="col-mode" />
+      <input type="hidden" id="f-col-oldname" />
+      <div class="form-grid">
+        <div class="form-row"><label>字段名</label><input type="text" id="f-col-name" placeholder="例如 user_name" /></div>
+        <div class="form-row">
+          <label>类型</label>
+          <input type="text" id="f-col-type" list="col-type-list" placeholder="选择或输入，如 VARCHAR(255)" />
+          <datalist id="col-type-list">
+            <option>INT</option><option>BIGINT</option><option>TINYINT</option><option>SMALLINT</option><option>MEDIUMINT</option>
+            <option>VARCHAR(255)</option><option>VARCHAR(50)</option><option>CHAR(36)</option>
+            <option>TEXT</option><option>MEDIUMTEXT</option><option>LONGTEXT</option>
+            <option>DATETIME</option><option>TIMESTAMP</option><option>DATE</option><option>TIME</option><option>YEAR</option>
+            <option>DECIMAL(10,2)</option><option>FLOAT</option><option>DOUBLE</option>
+            <option>BOOLEAN</option><option>JSON</option><option>BLOB</option><option>LONGBLOB</option>
+            <option>BINARY(16)</option><option>ENUM('a','b')</option>
+          </datalist>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>默认值</label>
+          <input type="text" id="f-col-default" placeholder="留空表示无默认值" />
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" id="f-col-null" checked /> 允许 NULL</label>
+          <label><input type="checkbox" id="f-col-default-raw" /> 默认值为表达式</label>
+        </div>
+      </div>
+      <div class="form-row" id="col-pos-row">
+        <label>位置</label>
+        <select id="f-col-after" class="db-select"></select>
+      </div>
+      <div class="form-row"><label>注释</label><input type="text" id="f-col-comment" placeholder="可选" /></div>
+      <div id="col-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-col-cancel" class="btn">取消</button>
+        <button id="btn-col-save" class="btn primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据导入弹窗 -->
+  <div id="import-modal" class="modal-overlay hidden">
+    <div class="modal wide">
+      <h3>导入数据 · <span id="import-table"></span></h3>
+      <div class="form-row">
+        <label>文件</label>
+        <div class="file-row">
+          <input type="text" id="import-file" readonly placeholder="选择 CSV / Excel / JSON / SQL 文件" />
+          <button id="btn-import-pick" class="btn">选择文件…</button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>格式</label>
+          <select id="import-format" class="db-select">
+            <option value="auto">自动（按扩展名）</option>
+            <option value="csv">CSV</option>
+            <option value="excel">Excel (.xlsx)</option>
+            <option value="json">JSON</option>
+            <option value="sql">SQL 脚本</option>
+          </select>
+        </div>
+        <div class="form-row"><label>冲突处理</label>
+          <select id="import-mode" class="db-select">
+            <option value="append">追加（直接插入）</option>
+            <option value="skip">跳过重复（按主键/唯一键）</option>
+            <option value="overwrite">覆盖重复（更新）</option>
+          </select>
+        </div>
+      </div>
+      <div id="import-meta" class="import-meta"></div>
+      <div id="import-mapping" class="import-mapping"></div>
+      <div id="import-progress" class="import-progress hidden">
+        <div class="ip-bar"><div class="ip-fill" id="import-fill"></div></div>
+        <span id="import-ptext"></span>
+      </div>
+      <div id="import-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-import-cancel" class="btn">取消</button>
+        <button id="btn-import-run" class="btn primary">导入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 外键编辑弹窗 -->
+  <div id="fk-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>新增外键</h3>
+      <div class="form-row"><label>约束名（可选）</label><input type="text" id="f-fk-name" placeholder="留空则由 MySQL 自动命名" /></div>
+      <div class="form-grid">
+        <div class="form-row"><label>本表字段</label><select id="f-fk-col" class="db-select"></select></div>
+        <div class="form-row"><label>引用表</label><select id="f-fk-rtable" class="db-select"></select></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>引用字段</label><select id="f-fk-rcol" class="db-select"></select></div>
+        <div class="form-row"><label>&nbsp;</label><span class="if-note" style="font-size:11.5px;color:var(--text-mute)">引用表需在同一数据库内</span></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>ON DELETE</label>
+          <select id="f-fk-ondelete" class="db-select">
+            <option value="">默认 (RESTRICT)</option><option>CASCADE</option><option>SET NULL</option><option>RESTRICT</option><option>NO ACTION</option>
+          </select>
+        </div>
+        <div class="form-row"><label>ON UPDATE</label>
+          <select id="f-fk-onupdate" class="db-select">
+            <option value="">默认 (RESTRICT)</option><option>CASCADE</option><option>SET NULL</option><option>RESTRICT</option><option>NO ACTION</option>
+          </select>
+        </div>
+      </div>
+      <div id="fk-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-fk-cancel" class="btn">取消</button>
+        <button id="btn-fk-save" class="btn primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结构对比弹窗 -->
+  <div id="cmp-modal" class="modal-overlay hidden">
+    <div class="modal wide cmp-modal">
+      <h3>数据库结构对比</h3>
+      <div class="cmp-controls">
+        <div class="cmp-side">
+          <div class="cmp-side-title">源（基准）</div>
+          <select id="cmp-src-conn" class="db-select"></select>
+          <select id="cmp-src-db" class="db-select"></select>
+        </div>
+        <div class="cmp-arrow">⇒</div>
+        <div class="cmp-side">
+          <div class="cmp-side-title">目标（将向源对齐）</div>
+          <select id="cmp-tgt-conn" class="db-select"></select>
+          <select id="cmp-tgt-db" class="db-select"></select>
+        </div>
+        <button id="btn-cmp-run" class="btn primary">对比</button>
+      </div>
+      <div id="cmp-summary" class="cmp-summary"></div>
+      <div class="cmp-sql-head">
+        <span>同步 SQL（让「目标」与「源」一致；请审阅后再执行）</span>
+        <span class="spacer"></span>
+        <button id="btn-cmp-copy" class="btn sm">复制</button>
+        <button id="btn-cmp-toquery" class="btn sm">载入到查询</button>
+      </div>
+      <textarea id="cmp-sql" class="cmp-sql" spellcheck="false" readonly></textarea>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-cmp-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 索引编辑弹窗 -->
+  <div id="idx-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>新增索引</h3>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>类型</label>
+          <select id="f-idx-type" class="db-select">
+            <option value="INDEX">普通索引 (INDEX)</option>
+            <option value="UNIQUE">唯一索引 (UNIQUE)</option>
+            <option value="FULLTEXT">全文索引 (FULLTEXT)</option>
+            <option value="PRIMARY">主键 (PRIMARY KEY)</option>
+          </select>
+        </div>
+        <div class="form-row"><label>索引名</label><input type="text" id="f-idx-name" placeholder="如 idx_user_name" /></div>
+      </div>
+      <div class="form-row">
+        <label>字段（可多选，按勾选顺序）</label>
+        <div id="idx-cols" class="idx-cols"></div>
+      </div>
+      <div id="idx-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-idx-cancel" class="btn">取消</button>
+        <button id="btn-idx-save" class="btn primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图表弹窗 -->
+  <div id="chart-modal" class="modal-overlay hidden">
+    <div class="modal wide chart-modal">
+      <h3>结果图表</h3>
+      <div class="chart-controls">
+        <label>类型
+          <select id="chart-type" class="db-select">
+            <option value="bar">柱状图</option>
+            <option value="line">折线图</option>
+            <option value="pie">饼图</option>
+          </select>
+        </label>
+        <label>X 轴 / 分类 <select id="chart-x" class="db-select"></select></label>
+        <label>Y 轴 / 数值 <select id="chart-y" class="db-select"></select></label>
+        <button id="btn-chart-render" class="btn primary">渲染</button>
+      </div>
+      <div id="chart-area" class="chart-area"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-chart-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 可视化查询构建器 -->
+  <div id="qb-modal" class="modal-overlay hidden">
+    <div class="modal wide qb-modal">
+      <h3>可视化查询构建器</h3>
+      <div class="qb-row">
+        <label>数据库 <select id="qb-db" class="db-select"></select></label>
+        <label>表 <select id="qb-table" class="db-select"></select></label>
+      </div>
+      <div class="qb-block">
+        <div class="qb-sub">字段
+          <button id="qb-col-all" class="btn tiny">全选</button>
+          <button id="qb-col-none" class="btn tiny">清空</button>
+        </div>
+        <div id="qb-col-list" class="qb-col-list"></div>
+      </div>
+      <div class="qb-block">
+        <div class="qb-sub">条件（WHERE） <button id="qb-cond-add" class="btn tiny">＋ 加条件</button></div>
+        <div id="qb-cond-list"></div>
+      </div>
+      <div class="qb-row">
+        <label>排序 <select id="qb-order" class="db-select"></select></label>
+        <select id="qb-order-dir" class="db-select"><option value="">默认</option><option value="ASC">升序 ASC</option><option value="DESC">降序 DESC</option></select>
+        <label class="limit-ctl">限制 <input id="qb-limit" class="limit-input" type="number" min="0" value="100"> 行</label>
+      </div>
+      <div class="qb-sub">生成的 SQL</div>
+      <textarea id="qb-sql" class="qb-sql" readonly spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button id="qb-copy" class="btn">复制</button>
+        <div class="spacer"></div>
+        <button id="qb-run" class="btn primary">执行</button>
+        <button id="qb-load" class="btn">载入编辑器</button>
+        <button id="qb-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQL 导出弹窗 -->
+  <div id="dump-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="dump-title">导出 SQL</h3>
+      <div class="dump-opts">
+        <label class="ck"><input type="checkbox" id="dump-structure" checked /> 表结构 (CREATE TABLE)</label>
+        <label class="ck"><input type="checkbox" id="dump-data" checked /> 数据 (INSERT)</label>
+        <label class="ck"><input type="checkbox" id="dump-drop" checked /> 包含 DROP TABLE IF EXISTS</label>
+      </div>
+      <div id="dump-msg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <div class="spacer"></div>
+        <button id="btn-dump-cancel" class="btn">取消</button>
+        <button id="btn-dump-ok" class="btn primary">导出…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div id="ctx-menu" class="ctx-menu hidden"></div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
