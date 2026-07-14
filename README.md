@@ -1,6 +1,11 @@
 # MySQL 客户端 (Electron)
 
 一个基于 Electron + mysql2 的桌面版 MySQL 连接管理与查询工具。深色主题，全中文界面。
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/b64b8820b1b94e05a358348b6c87c97c.png)![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/bb18fe0d25a6480eb94c249292dc4206.png)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/4ef8852e583d43efb8e6f2ce4120c959.png)
+
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/9b16e6db6c1d40fd93830b6bcf2fb45f.png)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/13ef9a36a1da4088b22e4ca26a1c5a36.png)
 
 ## 功能
 
